@@ -1,0 +1,126 @@
+<input type="file" onChange={handleFileUpload} />
+ {data.length > 0 && (
+        <table>
+          <thead>
+            <tr>
+              <th>Employee ID #1</th>
+              <th>Employee ID #2</th>
+              <th>Project ID</th>
+              <th>Days worked</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(pairDaysWorked).map(([pair, days]) => {
+              const [emp1, emp2] = pair.split('-');
+              const project = pairs[pair][0].ProjectID;
+              return (
+                <tr key={pair}>
+                  <td>{emp1}</td>
+                  <td>{emp2}</td>
+                  <td>{project}</td>
+                  <td>{days}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+
+
+
+      import React, { useState } from 'react';
+import csv from 'csvtojson';
+
+function App() {
+  const [file, setFile] = useState(null);
+  const [data, setData] = useState([]);
+  const [pairs, setPairs] = useState({});
+  const [pairDaysWorked, setPairDaysWorked] = useState({});
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    setFile(file);
+    const jsonData = await csv().fromFile(file.path);
+    setData(jsonData);
+    const groupedPairs = jsonData.reduce((result, row) => {
+      const key = `${row.EmpID}-${row.ProjectID}`;
+      if (!result[key]) {
+        result[key] = [];
+      }
+      result[key].push(row);
+      return result;
+    }, {});
+    setPairs(groupedPairs);
+
+    const pairDays = {};
+    for (const [pair, rows] of Object.entries(groupedPairs)) {
+      let totalDays = 0;
+      for (const row of rows) {
+        const dateFrom = new Date(row.DateFrom);
+        const dateTo = row.DateTo ? new Date(row.DateTo) : new Date();
+        const daysWorked = Math.round((dateTo - dateFrom) / (1000 * 60 * 60 * 24));
+        totalDays += daysWorked;
+      }
+      pairDays[pair] = totalDays;
+    }
+    setPairDaysWorked(pairDays);
+
+    let maxPair = null;
+    let maxDays = 0;
+
+    for (const [key, value] of Object.entries(groupedPairs)) {
+      const [emp1, emp2] = key.split('-');
+      let totalDays = 0;
+
+      for (let i = 0; i < value.length; i++) {
+        const row = value[i];
+        const dateFrom = new Date(row.DateFrom);
+        const dateTo = row.DateTo ? new Date(row.DateTo) : new Date();
+
+        totalDays += Math.ceil((dateTo - dateFrom) / (1000 * 60 * 60 * 24));
+      }
+
+      if (totalDays > maxDays) {
+        maxDays = totalDays;
+        maxPair = `${emp1}-${emp2}`;
+      }
+    }
+
+    console.log(`Pair with longest time worked: ${maxPair} (${maxDays} days)`);
+  };
+
+  return (
+    <div>
+      <h1>Employee Pairing App</h1>
+      <input type="file" onChange={handleFileUpload} />
+      {data.length > 0 && (
+        <table>
+          <thead>
+            <tr>
+              <th>Employee ID #1</th>
+              <th>Employee ID #2</th>
+              <th>Project ID</th>
+              <th>Days worked</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(pairDaysWorked).map(([pair, days]) => {
+              const [emp1, emp2] = pair.split('-');
+              const project = pairs[pair][0].ProjectID;
+              return (
+                <tr key={pair}>
+                  <td>{emp1}</td>
+                  <td>{emp2}</td>
+                  <td>{project}</td>
+                  <td>{days}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+export default App;
